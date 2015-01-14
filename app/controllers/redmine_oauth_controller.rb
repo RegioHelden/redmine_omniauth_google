@@ -40,8 +40,8 @@ class RedmineOauthController < AccountController
    session.delete(:back_url)
    user = User.find_or_initialize_by_mail(info["email"])
     if user.new_record?
-      # Self-registration off
-      redirect_to(home_url) && return unless Setting.self_registration?
+      # Self-registration off and on-the-fly user creation disabled
+      redirect_to(home_url) && return unless Setting.self_registration? && settings[:onthefly_register]
       # Create on the fly
       user.firstname, user.lastname = info["name"].split(' ') unless info['name'].nil?
       user.firstname ||= info[:given_name]
@@ -53,6 +53,12 @@ class RedmineOauthController < AccountController
       user.register
 
       case Setting.self_registration
+      when '0'
+        if settings[:onthefly_register]
+          register_automatically(user) do
+            onthefly_creation_failed(user)
+          end
+        end
       when '1'
         register_by_email_activation(user) do
           onthefly_creation_failed(user)
